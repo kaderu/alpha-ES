@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>jd.alpha.wh</groupId>
+        <artifactId>alpha-search</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
+    <groupId>jd.alpha.wh</groupId>
+    <artifactId>alpha-search-server</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+
+    <properties>
+        <elasticsearch.version>2.4.1</elasticsearch.version>
+        <spatial4j.version>0.5</spatial4j.version>
+        <jts.version>1.13</jts.version>
+        <slf4j.version>1.6.2</slf4j.version>
+        <log4j.version>1.2.17</log4j.version>
+        <com.github.spullara.mustache.java.version>0.8.13</com.github.spullara.mustache.java.version>
+        <!-- Adding a module to the distribution:
+             1. modify packaging.module.list below
+             2. add the module dependency to unpack-modules  -->
+        <!-- pipe-separated list of modules. for license checking. -->
+        <packaging.module.list>yscript|reindex</packaging.module.list>
+        <!-- Properties used for building RPM & DEB packages (see common/packaging.properties) -->
+        <packaging.elasticsearch.home.dir>/usr/share/elasticsearch</packaging.elasticsearch.home.dir>
+        <packaging.elasticsearch.bin.dir>/usr/share/elasticsearch/bin</packaging.elasticsearch.bin.dir>
+        <packaging.elasticsearch.conf.dir>/etc/elasticsearch</packaging.elasticsearch.conf.dir>
+        <packaging.elasticsearch.data.dir>/var/lib/elasticsearch</packaging.elasticsearch.data.dir>
+        <packaging.elasticsearch.user>elasticsearch</packaging.elasticsearch.user>
+        <packaging.elasticsearch.group>elasticsearch</packaging.elasticsearch.group>
+        <packaging.elasticsearch.log.dir>/var/log/elasticsearch</packaging.elasticsearch.log.dir>
+        <packaging.elasticsearch.plugins.dir>${packaging.elasticsearch.home.dir}/plugins</packaging.elasticsearch.plugins.dir>
+        <packaging.elasticsearch.pid.dir>/var/run/elasticsearch</packaging.elasticsearch.pid.dir>
+        <packaging.elasticsearch.systemd.dir>/usr/lib/systemd/system</packaging.elasticsearch.systemd.dir>
+        <packaging.elasticsearch.systemd.sysctl.dir>/usr/lib/sysctl.d</packaging.elasticsearch.systemd.sysctl.dir>
+        <packaging.elasticsearch.tmpfilesd.dir>/usr/lib/tmpfiles.d</packaging.elasticsearch.tmpfilesd.dir>
+
+        <!-- Properties for the license checker -->
+        <project.licenses.dir>${project.basedir}/../licenses</project.licenses.dir>
+        <project.licenses.ignore>(${project.build.finalName}|${packaging.module.list})</project.licenses.ignore>
+        <!-- we expect packaging formats to have integration tests, but not unit tests -->
+        <skip.unit.tests>true</skip.unit.tests>
+        <packaging.gpg.shortening.ant.script>${project.basedir}/../correct-sign-path.xml</packaging.gpg.shortening.ant.script>
+        <gpg.key>16E55242</gpg.key>
+        <gpg.long.keypath>${project.basedir}/../src/test/resources/dummyGpg</gpg.long.keypath>
+        <gpg.default.keypath>${java.io.tmpdir}/shortGpg</gpg.default.keypath>
+        <gpg.keypath>${gpg.default.keypath}</gpg.keypath>
+        <gpg.keyring>${gpg.keypath}/secring.gpg</gpg.keyring>
+        <gpg.passphrase>dummy</gpg.passphrase>
+        <deb.sign>true</deb.sign>
+    </properties>
+
+    <!-- PUT TEST ONLY DEPS HERE. Let individual distributions figure out what they want -->
+    <dependencies>
+        <!-- Embedded components in any distribution -->
+        <dependency>
+            <groupId>jd.alpha.wh</groupId>
+            <artifactId>alpha-search-core</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.spatial4j</groupId>
+            <artifactId>spatial4j</artifactId>
+            <version>${spatial4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.vividsolutions</groupId>
+            <artifactId>jts</artifactId>
+            <version>${jts.version}</version>
+        </dependency>
+
+        <!-- needed for templating -->
+        <dependency>
+            <groupId>com.github.spullara.mustache.java</groupId>
+            <artifactId>compiler</artifactId>
+            <version>${com.github.spullara.mustache.java.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>log4j</groupId>
+            <artifactId>apache-log4j-extras</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <filters>
+            <filter>${project.basedir}/src/main/packaging/packaging.properties</filter>
+        </filters>
+
+        <plugins>
+            <!-- bundle modules -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/lib</outputDirectory>
+                            <includeScope>runtime</includeScope>
+                        </configuration>
+                    </execution>
+                    <!-- bundled modules. distributions that want them enable by setting phase: prepare-package -->
+                    <execution>
+                        <id>unpack-modules</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>unpack</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+
+                                <artifactItem>
+                                    <groupId>org.yhd.search</groupId>
+                                    <artifactId>module.yscript</artifactId>
+                                    <version>${elasticsearch.version}</version>
+                                    <type>zip</type>
+                                    <overWrite>true</overWrite>
+                                    <outputDirectory>${project.build.directory}/modules/yscript</outputDirectory>
+                                </artifactItem>
+
+                                <artifactItem>
+                                    <groupId>org.yhd.search</groupId>
+                                    <artifactId>module.reindex</artifactId>
+                                    <version>${elasticsearch.version}</version>
+                                    <type>zip</type>
+                                    <overWrite>true</overWrite>
+                                    <outputDirectory>${project.build.directory}/modules/reindex</outputDirectory>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-eclipse-plugin</artifactId>
+                <configuration>
+                    <!-- Many of the modules in this build have the artifactId "elasticsearch"
+                      which break importing into Eclipse without this. -->
+                    <projectNameTemplate>[groupId].[artifactId]</projectNameTemplate>
+                </configuration>
+            </plugin>
+
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <appendAssemblyId>false</appendAssemblyId>
+                    <outputDirectory>${project.build.directory}/releases/</outputDirectory>
+                    <descriptors>
+                        <descriptor>${project.basedir}/src/main/assemblies/zip-bin.xml</descriptor>
+                    </descriptors>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
