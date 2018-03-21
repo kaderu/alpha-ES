@@ -7,5 +7,8 @@
   
 
 	<context:component-scan base-package="com.lita.restful"/>
-	<mvc:annotation-driven/>  
+	<context:component-scan base-package="com.jd.alpha.skill.controller"/>
+	<context:component-scan base-package="com.jd.alpha.skill.handler"/>
+	<context:component-scan base-package="com.jd.alpha.skill.builder"/>
+	<mvc:annotation-driven/>
 </beans>  
